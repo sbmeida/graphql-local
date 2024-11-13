@@ -1,77 +1,66 @@
 const express = require("express");
 const { createHandler } = require("graphql-http/lib/use/express");
 const { buildSchema } = require("graphql");
+const { diceSchema, diceFn } = require("./queries/dice");
+const { helloSchema, helloFn } = require("./queries/hello");
+const {
+  usersDataSchema,
+  userPaginationFn,
+} = require("./queries/usersPagination");
 const { ruruHTML } = require("ruru/server");
 
 const app = express();
 
-// First Schema and Resolver (for /graphql)
-const schema = buildSchema(`
-  type Query {
-    hello: String
-  }
-`);
-
-const mainRoot = {
-  hello() {
-    return "Hello world 3!";
-  },
-};
-
-// First Schema and Resolver (for /graphql/dice)
-const diceSchema = buildSchema(`
-  type Query {
-    rollDice(numDice: Int!, numSides: Int): [Int]
-  }
-`);
-
-const diceRoot = {
-  rollDice: ({ numDice, numSides }) => {
-    const sides = numSides || 6; // default to 6 sides if not provided
-    return Array.from(
-      { length: numDice },
-      () => Math.floor(Math.random() * sides) + 1
-    );
-  },
-};
-
-// Serve the first GraphQL endpoint at /graphql
+// Start Hello
 app.use(
-  "/graphql",
+  "/helloRouter",
   createHandler({
-    schema: schema,
-    rootValue: mainRoot,
+    schema: helloSchema,
+    rootValue: helloFn,
   })
 );
 
-// Serve the second GraphQL endpoint at /graphql/dice
+app.get("/hello", (_req, res) => {
+  res.type("html");
+  res.end(ruruHTML({ endpoint: "/helloRouter" }));
+});
+// End Hello
+
+// Start Dice
 app.use(
-  "/dicetest",
+  "/diceRouter",
   createHandler({
     schema: diceSchema,
-    rootValue: diceRoot,
+    rootValue: diceFn,
   })
 );
 
-// Serve the GraphiQL IDE for /graphql endpoint
-app.get("/", (_req, res) => {
-  res.type("html");
-  res.end(ruruHTML({ endpoint: "/graphql" }));
-});
-
-// Serve the GraphiQL IDE for /graphql/dice endpoint
 app.get("/dice", (_req, res) => {
   res.type("html");
-  res.end(ruruHTML({ endpoint: "/dicetest" }));
+  res.end(ruruHTML({ endpoint: "/diceRouter" }));
 });
+// End Dice
 
-// Start the server at port
+// Start usersData
+app.use(
+  "/creatorspaginationEndpoint",
+  createHandler({
+    schema: usersDataSchema,
+    rootValue: userPaginationFn,
+  })
+);
+
+app.get("/usersPagination", (_req, res) => {
+  res.type("html");
+  res.end(ruruHTML({ endpoint: "/creatorspaginationEndpoint" }));
+});
+// End usersData
+
 const PORT = 4000;
 app.listen(PORT, () => {
   console.log(
-    `Main GraphQL API server running at http://localhost:${PORT}/graphql`
-  );
-  console.log(
-    `Dice GraphQL API server running at http://localhost:${PORT}/graphql/dice`
+    `Main GraphQL API server running at http://localhost:${PORT}/hello`,
+    `Hello GraphQL API server running at http://localhost:${PORT}/dice`,
+    `Users GraphQL API server running at http://localhost:${PORT}/usersPagination`
   );
 });
